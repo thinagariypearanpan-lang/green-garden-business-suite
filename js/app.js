@@ -7,7 +7,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const COMPANY_ID = "green_garden_market";
 
-const DEFAULT_activeBranches() = ["Green Garden Market","Cahaya Maju","Nibong Tebal","Simpang Ampat","Alma","Sungai Bakap"];
+const DEFAULT_DEFAULT_BRANCHES = ["Green Garden Market","Cahaya Maju","Nibong Tebal","Simpang Ampat","Alma","Sungai Bakap"];
 const DEFAULT_PAYMENT_METHODS = ["Bank Transfer","Cash","Cheque","DuitNow","Other"];
 const DEFAULT_CATEGORIES = ["General","Vegetables","Fruits","Chicken/Meat","Seafood","Groceries","Dry Goods","Utilities","Other"];
 
@@ -70,7 +70,16 @@ onAuthStateChanged(auth, user => {
   }
 });
 
-window.login=async function(){try{await signInWithEmailAndPassword(auth,document.getElementById("loginEmail").value.trim(),document.getElementById("loginPassword").value)}catch(e){document.getElementById("loginError").textContent=e.message}}
+window.login=async function(){
+  const err=document.getElementById("loginError");
+  if(err) err.textContent="";
+  try{
+    await signInWithEmailAndPassword(auth,document.getElementById("loginEmail").value.trim(),document.getElementById("loginPassword").value);
+  }catch(e){
+    if(err) err.textContent=e.message;
+    console.error(e);
+  }
+}
 window.logout=async function(){await signOut(auth)}
 window.comingSoon=function(name){alert(name+" module will be built after Supplier Payment and System Administration are approved.")}
 
