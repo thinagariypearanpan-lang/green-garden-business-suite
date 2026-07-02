@@ -7,7 +7,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const COMPANY_ID = "green_garden_market";
 
-const DEFAULT_BRANCHES = ["Green Garden Market","Cahaya Maju","Nibong Tebal","Simpang Ampat","Alma","Sungai Bakap"];
+const DEFAULT_activeBranches() = ["Green Garden Market","Cahaya Maju","Nibong Tebal","Simpang Ampat","Alma","Sungai Bakap"];
 const DEFAULT_PAYMENT_METHODS = ["Bank Transfer","Cash","Cheque","DuitNow","Other"];
 const DEFAULT_CATEGORIES = ["General","Vegetables","Fruits","Chicken/Meat","Seafood","Groceries","Dry Goods","Utilities","Other"];
 
@@ -20,7 +20,7 @@ let unsub = [];
 const colPath = (name) => collection(db, "companies", COMPANY_ID, name);
 const docPath = (name, id) => doc(db, "companies", COMPANY_ID, name, id);
 
-const activeBranches = () => { const saved=data.branches.filter(b=>b.status!=="Inactive").map(b=>b.name).filter(Boolean); return saved.length?saved:DEFAULT_BRANCHES; };
+const activeBranches = () => { const saved=data.branches.filter(b=>b.status!=="Inactive").map(b=>b.name).filter(Boolean); return saved.length?saved:DEFAULT_activeBranches(); };
 const activePaymentMethods = () => { const saved=data.paymentMethods.filter(m=>m.status!=="Inactive").map(m=>m.name).filter(Boolean); return saved.length?saved:DEFAULT_PAYMENT_METHODS; };
 const activeCategories = () => { const saved=data.categories.filter(c=>c.status!=="Inactive").map(c=>c.name).filter(Boolean); return saved.length?saved:DEFAULT_CATEGORIES; };
 
@@ -138,7 +138,7 @@ function renderSummary(){const m={};filteredInvoices().forEach(i=>{if(!m[i.suppl
 function renderMethodSummary(){const m={};filteredPayments().forEach(p=>{const mo=monthKey(p.date);if(!mo)return;if(!m[mo])m[mo]={month:mo,total:0};m[mo][p.method]=(m[mo][p.method]||0)+Number(p.amount||0);m[mo].total+=Number(p.amount||0)});const methods=activePaymentMethods();table("methodSummaryTable",["Month",...methods,"Total"],Object.values(m).map(r=>[monthLabel(r.month),...methods.map(x=>money(r[x]||0)),money(r.total)]))}
 function renderAudit(){table("auditTable",["Date/Time","User","Action","Details"],data.auditLogs.slice(0,100).map(r=>[r.createdAtLocal?new Date(r.createdAtLocal).toLocaleString("en-MY"):"-",r.userEmail||"-",r.action||"-",r.details||"-"]))}
 function renderUsers(){table("usersTable",["Name","Email","Role","Branch Access","Status","Action"],data.userProfiles.map(u=>[u.name,u.email,u.role,u.branchAccess,u.status,`<button class="secondary" onclick="editUserProfile('${u.id}')">Edit</button>`]))}
-function renderBranches(){const rows=(data.branches.length?data.branches:DEFAULT_BRANCHES.map((name,i)=>({id:"d"+i,name,status:"Active",code:"",manager:"",address:""}))).map(b=>[b.name,b.code||"-",b.status||"Active",b.manager||"-",b.address||"-",String(b.id).startsWith("d")?'<span class="muted">Default</span>':`<button class="secondary" onclick="editBranch('${b.id}')">Edit</button>`]);table("branchTable",["Branch","Code","Status","Manager","Address / Notes","Action"],rows)}
+function renderBranches(){const rows=(data.branches.length?data.branches:DEFAULT_activeBranches().map((name,i)=>({id:"d"+i,name,status:"Active",code:"",manager:"",address:""}))).map(b=>[b.name,b.code||"-",b.status||"Active",b.manager||"-",b.address||"-",String(b.id).startsWith("d")?'<span class="muted">Default</span>':`<button class="secondary" onclick="editBranch('${b.id}')">Edit</button>`]);table("branchTable",["Branch","Code","Status","Manager","Address / Notes","Action"],rows)}
 function renderPaymentMethods(){table("paymentMethodTable",["Method","Status","Action"],(data.paymentMethods.length?data.paymentMethods:DEFAULT_PAYMENT_METHODS.map((name,i)=>({id:"d"+i,name,status:"Active"}))).map(m=>[m.name,m.status||"Active",String(m.id).startsWith("d")?'<span class="muted">Default</span>':`<button class="secondary" onclick="editPaymentMethod('${m.id}')">Edit</button>`]))}
 function renderCategories(){table("categoryTable",["Category","Status","Action"],(data.categories.length?data.categories:DEFAULT_CATEGORIES.map((name,i)=>({id:"d"+i,name,status:"Active"}))).map(c=>[c.name,c.status||"Active",String(c.id).startsWith("d")?'<span class="muted">Default</span>':`<button class="secondary" onclick="editCategory('${c.id}')">Edit</button>`]))}
 function table(id,headers,rows){const el=document.getElementById(id);if(!el)return;let html="<table><thead><tr>"+headers.map(h=>`<th>${h}</th>`).join("")+"</tr></thead><tbody>";if(!rows.length)html+=`<tr><td colspan="${headers.length}" class="muted">No data yet.</td></tr>`;rows.forEach(r=>html+="<tr>"+r.map(c=>`<td>${c??"-"}</td>`).join("")+"</tr>");el.innerHTML=html+"</tbody></table>"}

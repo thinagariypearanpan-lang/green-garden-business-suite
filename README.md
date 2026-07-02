@@ -1,17 +1,13 @@
-# Green Garden Business Suite v1.2 Beta FIXED
+# Green Garden Business Suite v1.2.1 Beta - Login Fix
 
-Scope:
-- Supplier Payment Management remains active and clear.
-- System Administration foundation added.
+Fixed:
+- Removed remaining old BRANCHES reference
+- Fixed login crash issue
+- Supplier Payment + System Administration remains unchanged
 
-New in this version:
-- Branch Management
-- Editable branch names/codes/status
-- Payment Method Management
-- Supplier Category Management
-- User Management remains available
-- Branches/payment methods/categories are pulled from Firebase settings
-- Existing Supplier Payment dashboard stays familiar
-
-Release note:
-This is a complete fixed v1.2 release package. Replace the full project folder contents before committing and pushing.
+Deploy steps:
+1. Replace files in local GitHub folder.
+2. Commit: GGBS v1.2.1 Beta - Login Fix.
+3. Push origin.
+4. Wait for GitHub Pages deployment success.
+5. Open live app and press Ctrl + Shift + R.
