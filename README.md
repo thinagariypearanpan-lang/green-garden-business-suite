@@ -1,8 +1,9 @@
-# Green Garden Business Suite v1.2 Beta - Branch Management Stable
+# Green Garden Business Suite v1.2 Beta - Branch Management VERIFIED
 
-Built from stable v1.1.
+Built directly from stable v1.1.
 
 New:
+- Branch Management button in the left menu
 - Branch Management page
 - Add branch
 - Edit branch

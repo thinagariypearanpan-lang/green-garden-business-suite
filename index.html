@@ -38,6 +38,7 @@ table{width:100%;border-collapse:collapse;background:white;border-radius:16px;ov
     <div class="side-logo"><img src="assets/images/ggm-logo.png"><h2>GGBS</h2><p>Green Garden Business Suite</p><span class="module-pill">Module 1 Active</span><span class="version-pill">v1.2 Beta</span><p style="margin-top:8px;color:#111827;font-weight:700">Branch Management + Supplier Payment</p></div>
     <div class="nav">
       <button class="active" onclick="showPage('dashboard',this)">🏠 Dashboard</button><button onclick="showPage('invoiceEntry',this)">➕ Add Invoice</button><button onclick="showPage('invoices',this)">📄 Supplier Invoices</button><button onclick="showPage('paymentHistory',this)">💳 Payment History</button><button onclick="showPage('calendarTab',this)">📅 Payment Calendar</button><button onclick="showPage('summary',this)">👥 Supplier Summary</button><button onclick="showPage('methodSummary',this)">🏦 Payment Method Summary</button><button onclick="showPage('audit',this)">📝 Audit Logs</button><button onclick="showPage('users',this)">👤 User Management</button>
+      <button onclick="showPage('branchAdmin',this)">🏪 Branch Management</button>
       <button class="coming-soon" onclick="comingSoon('Operating Expenses')">💼 Operating Expenses <small>Soon</small></button><button class="coming-soon" onclick="comingSoon('Bank Cash Flow')">🏦 Bank Cash Flow <small>Soon</small></button><button class="coming-soon" onclick="comingSoon('Branch Profit')">📈 Branch Profit <small>Soon</small></button>
     </div>
     <div class="user-card"><b id="userName">Admin</b><br><span id="userEmail" class="muted"></span><div class="actions"><button class="secondary" onclick="logout()">Logout</button></div></div>
@@ -60,16 +61,19 @@ table{width:100%;border-collapse:collapse;background:white;border-radius:16px;ov
     <section id="branchAdmin" class="page">
       <div class="card">
         <h2>Branch Management</h2>
-        <p class="muted">Add, edit, activate or deactivate branches. Active branches appear in invoice branch dropdowns and filters.</p>
+        <p class="muted">Add, edit, activate or deactivate branches. Active branches will appear in invoice branch dropdowns and filters.</p>
         <form id="branchForm">
           <input type="hidden" id="branchId">
           <div><label>Branch Name</label><input id="branchName" placeholder="Example: Nibong Tebal"></div>
           <div><label>Branch Code</label><input id="branchCode" placeholder="Example: NT"></div>
           <div><label>Status</label><select id="branchStatus"><option>Active</option><option>Inactive</option></select></div>
           <div><label>Branch Manager</label><input id="branchManager" placeholder="Optional"></div>
-          <div class="full"><label>Address / Notes</label><textarea id="branchAddress" placeholder="Optional"></textarea></div>
+          <div class="full"><label>Address / Notes</label><textarea id="branchAddress" placeholder="Optional branch address or notes"></textarea></div>
         </form>
-        <div class="actions"><button onclick="saveBranch()">Save Branch</button><button class="secondary" onclick="resetBranchForm()">Clear Form</button></div>
+        <div class="actions">
+          <button onclick="saveBranch()">Save Branch</button>
+          <button class="secondary" onclick="resetBranchForm()">Clear Form</button>
+        </div>
       </div>
       <div id="branchTable"></div>
     </section>

@@ -27,7 +27,8 @@ function setToday(){
 }
 function populateBranchControls(){
   const branchList = activeBranches();
-  ["branch","globalBranchFilter","invoiceBranchFilter"].forEach(id => {
+  const selects = ["branch","globalBranchFilter","invoiceBranchFilter"];
+  selects.forEach(id => {
     const el = document.getElementById(id);
     if(!el) return;
     const current = el.value || (id === "branch" ? branchList[0] : "All");
@@ -38,6 +39,7 @@ function populateBranchControls(){
     }
     el.value = [...el.options].some(o => o.value === current) ? current : (id === "branch" ? branchList[0] : "All");
   });
+
   const profileBranch = document.getElementById("profileBranch");
   if(profileBranch){
     const current = profileBranch.value || "All Branches";
@@ -332,12 +334,14 @@ window.saveBranch = async function(){
     alert("Branch saved.");
   }catch(e){ alert("Branch save failed: " + e.message); }
 }
+
 window.resetBranchForm = function(){
   const form = document.getElementById("branchForm");
   if(form) form.reset();
   const id = document.getElementById("branchId");
   if(id) id.value = "";
 }
+
 window.editBranch = function(id){
   const b = data.branches.find(x => x.id === id);
   if(!b) return;
@@ -349,10 +353,13 @@ window.editBranch = function(id){
   document.getElementById("branchAddress").value = b.address || "";
   showPageById("branchAdmin");
 }
+
 function renderBranches(){
   const el = document.getElementById("branchTable");
   if(!el) return;
-  const source = data.branches.length ? data.branches : BRANCHES.map((name, i) => ({id:"default_"+i,name,code:"",status:"Active",manager:"",address:""}));
+  const source = data.branches.length ? data.branches : BRANCHES.map((name, i) => ({
+    id: "default_" + i, name, code: "", status: "Active", manager: "", address: ""
+  }));
   let html = '<table><thead><tr><th>Branch Name</th><th>Code</th><th>Status</th><th>Manager</th><th>Address / Notes</th><th>Action</th></tr></thead><tbody>';
   source.forEach(b => {
     const action = String(b.id).startsWith("default_") ? '<span class="muted">Default branch</span>' : `<button class="secondary" onclick="editBranch('${b.id}')">Edit</button>`;

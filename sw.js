@@ -1,4 +1,4 @@
-const CACHE_NAME = "ggbs-v1-2-branch-management-stable";
+const CACHE_NAME = "ggbs-v1-2-branch-management-verified";
 const FILES_TO_CACHE = [
   "./",
   "./index.html",
