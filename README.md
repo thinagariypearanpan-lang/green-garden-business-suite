@@ -1,18 +1,17 @@
-# Green Garden Business Suite v1.2 Beta
+# Green Garden Business Suite v1.2 Beta FIXED
 
-## Supplier Payment + System Administration
+Scope:
+- Supplier Payment Management remains active and clear.
+- System Administration foundation added.
 
-New in v1.2 Beta:
+New in this version:
 - Branch Management
-- Add/Edit branch name
-- Branch code, status, manager, address/notes
-- Active branches automatically appear in Supplier Payment dropdowns and filters
+- Editable branch names/codes/status
 - Payment Method Management
 - Supplier Category Management
-- Supplier Payment dashboard and workflow remain unchanged
+- User Management remains available
+- Branches/payment methods/categories are pulled from Firebase settings
+- Existing Supplier Payment dashboard stays familiar
 
-Important:
-Existing invoice records keep their original branch name for historical safety.
-If you rename a branch, new records will use the new branch name.
-
-Test using sample data first.
+Release note:
+This is a complete fixed v1.2 release package. Replace the full project folder contents before committing and pushing.
