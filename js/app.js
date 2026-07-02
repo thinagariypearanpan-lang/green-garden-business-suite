@@ -12,6 +12,50 @@ function activeBranches(){
   return saved.length ? saved : BRANCHES;
 }
 
+function currentProfile(){
+  const email = (currentUser?.email || "").toLowerCase();
+  const profile = data.userProfiles.find(u => (u.email || "").toLowerCase() === email && u.status !== "Inactive");
+  if(profile) return profile;
+  if(email === "thinagariy.pearanpan@gmail.com"){
+    return {name:"Thinagariy", email, role:"Super Admin", branchAccess:"All Branches", status:"Active"};
+  }
+  return {name:email.split("@")[0] || "User", email, role:"Viewer", branchAccess:"__NO_ACCESS__", status:"Active"};
+}
+function userRole(){ return currentProfile().role || "Viewer"; }
+function userBranchAccess(){ return currentProfile().branchAccess || "__NO_ACCESS__"; }
+function hasAllBranchAccess(){
+  const role = userRole();
+  return ["Super Admin","Director","Manager","Finance"].includes(role) || userBranchAccess() === "All Branches";
+}
+function allowedBranches(){
+  if(hasAllBranchAccess()) return activeBranches();
+  const branch = userBranchAccess();
+  return activeBranches().includes(branch) ? [branch] : [];
+}
+function canManageSystem(){ return ["Super Admin","Director"].includes(userRole()); }
+function canEditRecords(){ return ["Super Admin","Director","Finance","Branch Admin","Accounts/Admin","Manager"].includes(userRole()); }
+function canViewAudit(){ return ["Super Admin","Director","Finance","Manager"].includes(userRole()); }
+function enforceMenuPermissions(){
+  const buttons = Array.from(document.querySelectorAll(".nav button"));
+  buttons.forEach(btn => {
+    const txt = btn.textContent || "";
+    if(txt.includes("User Management") || txt.includes("Branch Management")){
+      btn.style.display = canManageSystem() ? "" : "none";
+    }
+    if(txt.includes("Audit Logs")){
+      btn.style.display = canViewAudit() ? "" : "none";
+    }
+  });
+}
+function updateUserRoleDisplay(){
+  const profile = currentProfile();
+  const roleEl = document.getElementById("userRoleDisplay");
+  const branchEl = document.getElementById("userBranchDisplay");
+  if(roleEl) roleEl.textContent = profile.role || "Viewer";
+  if(branchEl) branchEl.textContent = "Access: " + (profile.branchAccess || "No branch");
+}
+
+
 let currentUser = null;
 let data = { invoices: [], payments: [], auditLogs: [], userProfiles: [], branches: [] };
 let viewMonth = new Date().getMonth();
@@ -26,7 +70,7 @@ function setToday(){
   document.getElementById("todayDate").textContent = today.toLocaleDateString("en-MY",{weekday:"short",year:"numeric",month:"short",day:"numeric"});
 }
 function populateBranchControls(){
-  const branchList = activeBranches();
+  const branchList = allowedBranches();
   const selects = ["branch","globalBranchFilter","invoiceBranchFilter"];
   selects.forEach(id => {
     const el = document.getElementById(id);
@@ -35,15 +79,25 @@ function populateBranchControls(){
     if(id === "branch"){
       el.innerHTML = branchList.map(b => `<option value="${b}">${b}</option>`).join("");
     } else {
-      el.innerHTML = '<option value="All">All Branches</option>' + branchList.map(b => `<option value="${b}">${b}</option>`).join("");
+      if(hasAllBranchAccess()){
+        el.innerHTML = '<option value="All">All Branches</option>' + branchList.map(b => `<option value="${b}">${b}</option>`).join("");
+      } else {
+        el.innerHTML = branchList.map(b => `<option value="${b}">${b}</option>`).join("");
+      }
     }
-    el.value = [...el.options].some(o => o.value === current) ? current : (id === "branch" ? branchList[0] : "All");
+    if([...el.options].some(o => o.value === current)){
+      el.value = current;
+    } else {
+      el.value = hasAllBranchAccess() && id !== "branch" ? "All" : (branchList[0] || "");
+    }
+    el.disabled = (!hasAllBranchAccess() && (id === "globalBranchFilter" || id === "invoiceBranchFilter" || id === "branch"));
   });
 
   const profileBranch = document.getElementById("profileBranch");
   if(profileBranch){
+    const branchSource = activeBranches();
     const current = profileBranch.value || "All Branches";
-    profileBranch.innerHTML = '<option>All Branches</option>' + branchList.map(b => `<option>${b}</option>`).join("");
+    profileBranch.innerHTML = '<option>All Branches</option>' + branchSource.map(b => `<option>${b}</option>`).join("");
     profileBranch.value = [...profileBranch.options].some(o => o.value === current) ? current : "All Branches";
   }
 }
@@ -61,6 +115,8 @@ onAuthStateChanged(auth, user => {
     const greeting = hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
     document.getElementById("welcomeText").textContent = `${greeting}, ${user.email.split("@")[0]} 👋`;
     listenData();
+    updateUserRoleDisplay();
+    enforceMenuPermissions();
   } else {
     currentUser = null;
     unsub.forEach(u => u && u());
@@ -127,10 +183,29 @@ function status(inv){const bal=outstanding(inv), paid=paidForInvoice(inv.id); if
 function isOverdue(inv){return status(inv)!=="Paid" && inv.dueDate<todayISO()}
 function statusLabel(inv){return isOverdue(inv) ? "Overdue" : status(inv)}
 function statusClass(inv){const s=status(inv); if(isOverdue(inv)) return "status-overdue"; if(s==="Paid") return "status-paid"; if(s==="Partial") return "status-partial"; return "status-unpaid"}
-function selectedBranch(){return document.getElementById("globalBranchFilter")?.value || "All";}
-function branchMatches(record, branch){return branch === "All" || (record.branch || "Unassigned") === branch;}
-function filteredInvoicesByBranch(){const b = selectedBranch(); return data.invoices.filter(i => branchMatches(i,b));}
-function filteredPaymentsByBranch(){const b = selectedBranch(); return data.payments.filter(p => branchMatches(p,b));}
+function selectedBranch(){
+  const selected = document.getElementById("globalBranchFilter")?.value || "All";
+  if(!hasAllBranchAccess()){
+    return allowedBranches()[0] || "__NO_ACCESS__";
+  }
+  return selected;
+}
+function branchMatches(record, branch){
+  const permitted = allowedBranches();
+  if(!permitted.length) return false;
+  if(!hasAllBranchAccess()){
+    return permitted.includes(record.branch || "Unassigned");
+  }
+  return branch === "All" || (record.branch || "Unassigned") === branch;
+}
+function filteredInvoicesByBranch(){
+  const b = selectedBranch();
+  return data.invoices.filter(i => branchMatches(i,b));
+}
+function filteredPaymentsByBranch(){
+  const b = selectedBranch();
+  return data.payments.filter(p => branchMatches(p,b));
+}
 
 window.showPage = function(id,btn){
  document.querySelectorAll(".page").forEach(t=>t.classList.remove("active"));
@@ -150,6 +225,7 @@ window.showPageById = function(id){
 }
 
 window.saveInvoice = async function(){
+ if(!canEditRecords()){ alert('You do not have permission to save invoices.'); return; }
  const id=document.getElementById("invoiceId").value;
  const inv={
    supplier:document.getElementById("supplier").value.trim(),
@@ -190,6 +266,7 @@ window.editInvoice=function(id){
  showPageById("invoiceEntry");
 }
 window.deleteInvoice=async function(id){
+ if(!canEditRecords()){ alert('You do not have permission to delete invoices.'); return; }
  if(!confirm("Delete this invoice and its payment history?"))return;
  const inv=data.invoices.find(x=>x.id===id);
  await updateDoc(docPath("invoices",id), {deleted:true, deletedBy:currentUser.email, deletedAt:serverTimestamp()});
@@ -211,6 +288,7 @@ window.openPaymentModal=function(id){
 }
 window.closePaymentModal=function(){document.getElementById("paymentModal").style.display="none"}
 window.savePayment=async function(){
+ if(!canEditRecords()){ alert('You do not have permission to record payments.'); return; }
  const invoiceId=document.getElementById("payInvoiceId").value;
  const inv=data.invoices.find(x=>x.id===invoiceId); if(!inv)return;
  const amount=Number(document.getElementById("payAmount").value||0);
@@ -224,6 +302,7 @@ window.savePayment=async function(){
  } catch(e){ alert("Payment save failed: " + e.message); }
 }
 window.deletePayment=async function(id){
+ if(!canEditRecords()){ alert('You do not have permission to delete payments.'); return; }
  if(!confirm("Delete this payment record?"))return;
  const p=data.payments.find(x=>x.id===id);
  await updateDoc(docPath("payments",id), {deleted:true, deletedBy:currentUser.email, deletedAt:serverTimestamp()});
@@ -231,6 +310,7 @@ window.deletePayment=async function(id){
 }
 
 window.saveUserProfile = async function(){
+ if(!canManageSystem()){ alert('You do not have permission to manage users.'); return; }
   const id=document.getElementById("userProfileId").value;
   const profile={
     name:document.getElementById("profileName").value.trim(),
@@ -292,8 +372,11 @@ function listMini(list,showDate=false){if(!list.length)return'<p class="muted">N
 
 function updateMonthFilter(){const select=document.getElementById("monthFilter");if(!select)return;const current=select.value||"All";const months=[...new Set(filteredInvoicesByBranch().map(i=>monthKey(i.dueDate)).filter(Boolean))].sort();select.innerHTML='<option value="All">All Due Months</option>'+months.map(m=>`<option value="${m}">${monthLabel(m)}</option>`).join("");select.value=months.includes(current)?current:"All"}
 function getFilteredInvoices(){const q=(document.getElementById("invoiceSearch")?.value||"").toLowerCase(),f=document.getElementById("statusFilter")?.value||"All",mf=document.getElementById("monthFilter")?.value||"All";let rows=filteredInvoicesByBranch().filter(i=>(i.supplier||"").toLowerCase().includes(q)||(i.invoiceNo||"").toLowerCase().includes(q));const ibf=document.getElementById("invoiceBranchFilter")?.value||"All";if(ibf!=="All")rows=rows.filter(i=>(i.branch||"Unassigned")===ibf);if(f!=="All")rows=rows.filter(i=>f==="Overdue"?isOverdue(i):status(i)===f);if(mf!=="All")rows=rows.filter(i=>monthKey(i.dueDate)===mf);return rows.sort((a,b)=>a.dueDate.localeCompare(b.dueDate)||a.supplier.localeCompare(b.supplier))}
-function renderInvoices(){updateMonthFilter();const rows=getFilteredInvoices();let html='<table><thead><tr><th>Due Date</th><th>Supplier</th><th>Invoice No</th><th>Invoice Date</th><th>Branch</th><th>Category</th><th>Invoice Amount</th><th>Paid</th><th>Outstanding</th><th>Status</th><th>Action</th></tr></thead><tbody>';if(!rows.length)html+='<tr><td colspan="11" class="muted">No invoices found.</td></tr>';rows.forEach(i=>{html+=`<tr><td>${formatDate(i.dueDate)}</td><td>${i.supplier}</td><td>${i.invoiceNo}</td><td>${formatDate(i.invoiceDate)}</td><td>${i.branch||"-"}</td><td>${i.category||"-"}</td><td>${money(i.amount)}</td><td>${money(paidForInvoice(i.id))}</td><td><b>${money(outstanding(i))}</b></td><td class="${statusClass(i)}">${statusLabel(i)}</td><td><button onclick="openPaymentModal('${i.id}')">Record Payment</button> <button class="secondary" onclick="editInvoice('${i.id}')">Edit</button> <button class="danger" onclick="deleteInvoice('${i.id}')">Delete</button></td></tr>`});html+='</tbody></table>';document.getElementById("invoiceTable").innerHTML=html}
-function renderPayments(){const q=(document.getElementById("paymentSearch")?.value||"").toLowerCase();let rows=filteredPaymentsByBranch().filter(p=>(p.supplier||"").toLowerCase().includes(q)||(p.invoiceNo||"").toLowerCase().includes(q)||(p.ref||"").toLowerCase().includes(q)).sort((a,b)=>(b.date||"").localeCompare(a.date||""));let html='<table><thead><tr><th>Payment Date</th><th>Supplier</th><th>Invoice No</th><th>Branch</th><th>Amount Paid</th><th>Method</th><th>Reference</th><th>Created By</th><th>Remarks</th><th>Action</th></tr></thead><tbody>';if(!rows.length)html+='<tr><td colspan="10" class="muted">No payments recorded yet.</td></tr>';rows.forEach(p=>html+=`<tr><td>${formatDate(p.date)}</td><td>${p.supplier}</td><td>${p.invoiceNo}</td><td>${p.branch||"-"}</td><td>${money(p.amount)}</td><td>${p.method}</td><td>${p.ref||"-"}</td><td>${p.createdBy||"-"}</td><td>${p.remarks||"-"}</td><td><button class="danger" onclick="deletePayment('${p.id}')">Delete</button></td></tr>`);html+='</tbody></table>';document.getElementById("paymentsTable").innerHTML=html}
+function actionButton(html){
+  return canEditRecords() ? html : '<span class="muted">View only</span>';
+}
+function renderInvoices(){updateMonthFilter();const rows=getFilteredInvoices();let html='<table><thead><tr><th>Due Date</th><th>Supplier</th><th>Invoice No</th><th>Invoice Date</th><th>Branch</th><th>Category</th><th>Invoice Amount</th><th>Paid</th><th>Outstanding</th><th>Status</th><th>Action</th></tr></thead><tbody>';if(!rows.length)html+='<tr><td colspan="11" class="muted">No invoices found.</td></tr>';rows.forEach(i=>{html+=`<tr><td>${formatDate(i.dueDate)}</td><td>${i.supplier}</td><td>${i.invoiceNo}</td><td>${formatDate(i.invoiceDate)}</td><td>${i.branch||"-"}</td><td>${i.category||"-"}</td><td>${money(i.amount)}</td><td>${money(paidForInvoice(i.id))}</td><td><b>${money(outstanding(i))}</b></td><td class="${statusClass(i)}">${statusLabel(i)}</td><td>${actionButton(`<button onclick="openPaymentModal('${i.id}')">Record Payment</button> <button class="secondary" onclick="editInvoice('${i.id}')">Edit</button> <button class="danger" onclick="deleteInvoice('${i.id}')">Delete</button>`)}</td></tr>`});html+='</tbody></table>';document.getElementById("invoiceTable").innerHTML=html}
+function renderPayments(){const q=(document.getElementById("paymentSearch")?.value||"").toLowerCase();let rows=filteredPaymentsByBranch().filter(p=>(p.supplier||"").toLowerCase().includes(q)||(p.invoiceNo||"").toLowerCase().includes(q)||(p.ref||"").toLowerCase().includes(q)).sort((a,b)=>(b.date||"").localeCompare(a.date||""));let html='<table><thead><tr><th>Payment Date</th><th>Supplier</th><th>Invoice No</th><th>Branch</th><th>Amount Paid</th><th>Method</th><th>Reference</th><th>Created By</th><th>Remarks</th><th>Action</th></tr></thead><tbody>';if(!rows.length)html+='<tr><td colspan="10" class="muted">No payments recorded yet.</td></tr>';rows.forEach(p=>html+=`<tr><td>${formatDate(p.date)}</td><td>${p.supplier}</td><td>${p.invoiceNo}</td><td>${p.branch||"-"}</td><td>${money(p.amount)}</td><td>${p.method}</td><td>${p.ref||"-"}</td><td>${p.createdBy||"-"}</td><td>${p.remarks||"-"}</td><td>${actionButton(`<button class="danger" onclick="deletePayment('${p.id}')">Delete</button>`)}</td></tr>`);html+='</tbody></table>';document.getElementById("paymentsTable").innerHTML=html}
 window.changeMonth=function(delta){viewMonth+=delta;if(viewMonth<0){viewMonth=11;viewYear--}if(viewMonth>11){viewMonth=0;viewYear++}renderCalendar()}
 function renderCalendar(){const cal=document.getElementById("calendar");document.getElementById("calendarTitle").textContent=new Date(viewYear,viewMonth,1).toLocaleDateString("en-MY",{month:"long",year:"numeric"});const names=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];cal.innerHTML=names.map(d=>`<div class="day-name">${d}</div>`).join("");const first=new Date(viewYear,viewMonth,1).getDay(),days=new Date(viewYear,viewMonth+1,0).getDate();for(let i=0;i<first;i++)cal.innerHTML+="<div></div>";for(let day=1;day<=days;day++){const iso=`${viewYear}-${String(viewMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;const invs=filteredInvoicesByBranch().filter(i=>i.dueDate===iso&&status(i)!=="Paid");const total=invs.reduce((s,i)=>s+outstanding(i),0);let chips=invs.map(i=>`<div class="payment-chip ${isOverdue(i)?"overdue":status(i)==="Partial"?"partial":""}"><b>${i.supplier}</b><br>${i.branch||"-"}<br>${i.invoiceNo}<br>${money(outstanding(i))}</div>`).join("");if(invs.length)chips=`<div class="muted"><b>Total: ${money(total)}</b></div>`+chips;cal.innerHTML+=`<div class="date-cell"><div class="date-num">${day}</div>${chips}</div>`}}
 function renderSummary(){const map={};filteredInvoicesByBranch().forEach(i=>{if(!map[i.supplier])map[i.supplier]={supplier:i.supplier,invoice:0,paid:0,out:0,overdue:0,count:0};map[i.supplier].invoice+=Number(i.amount||0);map[i.supplier].paid+=paidForInvoice(i.id);map[i.supplier].out+=outstanding(i);if(isOverdue(i))map[i.supplier].overdue+=outstanding(i);map[i.supplier].count++});const rows=Object.values(map).sort((a,b)=>b.out-a.out);let html='<table><thead><tr><th>Supplier</th><th>No. of Invoices</th><th>Total Invoice</th><th>Total Paid</th><th>Total Outstanding</th><th>Overdue</th></tr></thead><tbody>';if(!rows.length)html+='<tr><td colspan="6" class="muted">No data yet.</td></tr>';rows.forEach(r=>html+=`<tr><td>${r.supplier}</td><td>${r.count}</td><td>${money(r.invoice)}</td><td>${money(r.paid)}</td><td><b>${money(r.out)}</b></td><td>${money(r.overdue)}</td></tr>`);html+='</tbody></table>';document.getElementById("summaryTable").innerHTML=html}
@@ -311,6 +394,7 @@ window.exportMethodSummaryCSV=function(){const monthMap={};filteredPaymentsByBra
 
 
 window.saveBranch = async function(){
+ if(!canManageSystem()){ alert('You do not have permission to manage branches.'); return; }
   const id = document.getElementById("branchId").value;
   const branch = {
     name: document.getElementById("branchName").value.trim(),
@@ -369,5 +453,5 @@ function renderBranches(){
   el.innerHTML = html;
 }
 
-function renderAll(){if(document.getElementById("appScreen").classList.contains("hidden"))return;populateBranchControls();renderDashboard();renderInvoices();renderPayments();renderCalendar();renderSummary();renderMethodSummary();renderAudit();renderUsers();renderBranches();}
+function renderAll(){if(document.getElementById("appScreen").classList.contains("hidden"))return;updateUserRoleDisplay();enforceMenuPermissions();populateBranchControls();renderDashboard();renderInvoices();renderPayments();renderCalendar();renderSummary();renderMethodSummary();renderAudit();renderUsers();renderBranches();}
 if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(console.log));}

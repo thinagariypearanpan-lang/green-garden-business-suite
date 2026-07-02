@@ -1,4 +1,4 @@
-const CACHE_NAME = "ggbs-v1-2-branch-management-verified";
+const CACHE_NAME = "ggbs-v1-3-lts-roles-permissions";
 const FILES_TO_CACHE = [
   "./",
   "./index.html",
