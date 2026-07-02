@@ -6,10 +6,15 @@ const app = initializeApp(window.firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const COMPANY_ID = "green_garden_market";
-const BRANCHES = ["Green Garden Market","Cahaya Maju","Nibong Tebal","Simpang Ampat","Alma","Sungai Bakap"];
+const DEFAULT_BRANCHES = ["Green Garden Market","Cahaya Maju","Nibong Tebal","Simpang Ampat","Alma","Sungai Bakap"];
+const DEFAULT_PAYMENT_METHODS = ["Bank Transfer","Cash","Cheque","DuitNow","Other"];
+const DEFAULT_CATEGORIES = ["General","Vegetables","Fruits","Chicken/Meat","Seafood","Groceries","Dry Goods","Utilities","Other"];
+function activeBranches(){ const saved=data.branches.filter(b=>b.status!=="Inactive").map(b=>b.name).filter(Boolean); return saved.length?saved:DEFAULT_BRANCHES; }
+function activePaymentMethods(){ const saved=data.paymentMethods.filter(m=>m.status!=="Inactive").map(m=>m.name).filter(Boolean); return saved.length?saved:DEFAULT_PAYMENT_METHODS; }
+function activeCategories(){ const saved=data.categories.filter(c=>c.status!=="Inactive").map(c=>c.name).filter(Boolean); return saved.length?saved:DEFAULT_CATEGORIES; }
 
 let currentUser = null;
-let data = { invoices: [], payments: [], auditLogs: [], userProfiles: [] };
+let data = { invoices: [], payments: [], auditLogs: [], userProfiles: [], branches: [], paymentMethods: [], categories: [] };
 let viewMonth = new Date().getMonth();
 let viewYear = new Date().getFullYear();
 let unsub = [];
@@ -26,13 +31,13 @@ function populateBranchControls(){
   selects.forEach(id => {
     const el = document.getElementById(id);
     if(!el) return;
-    const current = el.value || (id === "branch" ? BRANCHES[0] : "All");
+    const current = el.value || (id === "branch" ? activeBranches()[0] || "Green Garden Market" : "All");
     if(id === "branch"){
       el.innerHTML = BRANCHES.map(b => `<option value="${b}">${b}</option>`).join("");
     } else {
       el.innerHTML = '<option value="All">All Branches</option>' + BRANCHES.map(b => `<option value="${b}">${b}</option>`).join("");
     }
-    el.value = [...el.options].some(o => o.value === current) ? current : (id === "branch" ? BRANCHES[0] : "All");
+    el.value = [...el.options].some(o => o.value === current) ? current : (id === "branch" ? activeBranches()[0] || "Green Garden Market" : "All");
   });
 }
 setToday();
@@ -87,6 +92,18 @@ function listenData(){
     data.userProfiles = snap.docs.map(d => ({id:d.id, ...d.data()}));
     renderAll();
   }, err => console.log(err.message)));
+  unsub.push(onSnapshot(query(colPath("branches"), orderBy("name","asc")), snap => {
+    data.branches = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    renderAll();
+  }, err => console.log(err.message)));
+  unsub.push(onSnapshot(query(colPath("paymentMethods"), orderBy("name","asc")), snap => {
+    data.paymentMethods = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    renderAll();
+  }, err => console.log(err.message)));
+  unsub.push(onSnapshot(query(colPath("categories"), orderBy("name","asc")), snap => {
+    data.categories = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    renderAll();
+  }, err => console.log(err.message)));
 }
 
 async function audit(action, details){
@@ -124,7 +141,7 @@ window.showPage = function(id,btn){
  renderAll();
 }
 window.showPageById = function(id){
- const ids=["dashboard","invoiceEntry","invoices","paymentHistory","calendarTab","summary","methodSummary","audit","users"];
+ const ids=["dashboard","invoiceEntry","invoices","paymentHistory","calendarTab","summary","methodSummary","audit","users","branchAdmin","settings"];
  const navButtons=document.querySelectorAll(".nav button");
  document.querySelectorAll(".page").forEach(t=>t.classList.remove("active"));
  navButtons.forEach(b=>b.classList.remove("active"));
@@ -168,7 +185,7 @@ window.editInvoice=function(id){
  document.getElementById("invoiceDate").value=inv.invoiceDate;
  document.getElementById("dueDate").value=inv.dueDate;
  document.getElementById("amount").value=inv.amount;
- document.getElementById("branch").value=inv.branch||BRANCHES[0];
+ document.getElementById("branch").value=inv.branch||activeBranches()[0] || "Green Garden Market";
  document.getElementById("category").value=inv.category||"General";
  document.getElementById("remarks").value=inv.remarks||"";
  showPageById("invoiceEntry");
@@ -293,5 +310,21 @@ window.exportCalendarCSV=function(){const month=`${viewYear}-${String(viewMonth+
 window.exportSupplierSummaryCSV=function(){const map={};filteredInvoicesByBranch().forEach(i=>{if(!map[i.supplier])map[i.supplier]={supplier:i.supplier,invoice:0,paid:0,out:0,overdue:0,count:0};map[i.supplier].invoice+=Number(i.amount||0);map[i.supplier].paid+=paidForInvoice(i.id);map[i.supplier].out+=outstanding(i);if(isOverdue(i))map[i.supplier].overdue+=outstanding(i);map[i.supplier].count++});downloadCSV("supplier_summary.csv",["Branch Filter","Supplier","No. of Invoices","Total Invoice","Total Paid","Total Outstanding","Overdue"],Object.values(map).map(r=>[selectedBranch(),r.supplier,r.count,r.invoice,r.paid,r.out,r.overdue]))}
 window.exportMethodSummaryCSV=function(){const monthMap={};filteredPaymentsByBranch().forEach(p=>{const m=monthKey(p.date);if(!m)return;const method=p.method||"Other";if(!monthMap[m])monthMap[m]={month:m,total:0,Cash:0,"Bank Transfer":0,Cheque:0,DuitNow:0,Other:0};const amt=Number(p.amount||0);monthMap[m].total+=amt;if(method==="Cash")monthMap[m].Cash+=amt;else if(method==="Bank Transfer")monthMap[m]["Bank Transfer"]+=amt;else if(method==="Cheque")monthMap[m].Cheque+=amt;else if(method==="DuitNow")monthMap[m].DuitNow+=amt;else monthMap[m].Other+=amt});downloadCSV("monthly_payment_method_summary.csv",["Branch Filter","Month","Cash","Bank Transfer / Online","Cheque","DuitNow","Other","Total Paid"],Object.values(monthMap).map(r=>[selectedBranch(),monthLabel(r.month),r.Cash,r["Bank Transfer"],r.Cheque,r.DuitNow,r.Other,r.total]))}
 
-function renderAll(){if(document.getElementById("appScreen").classList.contains("hidden"))return;populateBranchControls();renderDashboard();renderInvoices();renderPayments();renderCalendar();renderSummary();renderMethodSummary();renderAudit();renderUsers();}
+
+window.saveBranch=async function(){const id=document.getElementById("branchId").value;const b={name:document.getElementById("branchName").value.trim(),code:document.getElementById("branchCode").value.trim().toUpperCase(),status:document.getElementById("branchStatus").value,manager:document.getElementById("branchManager").value.trim(),address:document.getElementById("branchAddress").value.trim(),updatedBy:currentUser.email,updatedAt:serverTimestamp()};if(!b.name){alert("Please enter branch name.");return;}try{if(id){await setDoc(docPath("branches",id),b,{merge:true});await audit("Edit Branch",`${b.name} / ${b.code}`);}else{await addDoc(colPath("branches"),{...b,createdBy:currentUser.email,createdAt:serverTimestamp()});await audit("Create Branch",`${b.name} / ${b.code}`);}resetBranchForm();alert("Branch saved.");}catch(e){alert("Branch save failed: "+e.message);}}
+window.resetBranchForm=function(){const f=document.getElementById("branchForm");if(f)f.reset();const id=document.getElementById("branchId");if(id)id.value="";}
+window.editBranch=function(id){const b=data.branches.find(x=>x.id===id);if(!b)return;document.getElementById("branchId").value=b.id;document.getElementById("branchName").value=b.name||"";document.getElementById("branchCode").value=b.code||"";document.getElementById("branchStatus").value=b.status||"Active";document.getElementById("branchManager").value=b.manager||"";document.getElementById("branchAddress").value=b.address||"";showPageById("branchAdmin");}
+function renderBranches(){const el=document.getElementById("branchTable");if(!el)return;const source=data.branches.length?data.branches:DEFAULT_BRANCHES.map((name,i)=>({id:"default"+i,name,code:"",status:"Active",manager:"",address:""}));let html='<table><thead><tr><th>Branch Name</th><th>Code</th><th>Status</th><th>Manager</th><th>Address / Notes</th><th>Action</th></tr></thead><tbody>';source.forEach(b=>{const action=String(b.id).startsWith("default")?'<span class="muted">Default branch</span>':`<button class="secondary" onclick="editBranch('${b.id}')">Edit</button>`;html+=`<tr><td>${b.name||"-"}</td><td>${b.code||"-"}</td><td>${b.status||"Active"}</td><td>${b.manager||"-"}</td><td>${b.address||"-"}</td><td>${action}</td></tr>`});html+='</tbody></table>';el.innerHTML=html;}
+
+window.savePaymentMethod=async function(){const id=document.getElementById("paymentMethodId").value;const m={name:document.getElementById("paymentMethodName").value.trim(),status:document.getElementById("paymentMethodStatus").value,updatedBy:currentUser.email,updatedAt:serverTimestamp()};if(!m.name){alert("Please enter payment method.");return;}try{if(id){await setDoc(docPath("paymentMethods",id),m,{merge:true});await audit("Edit Payment Method",m.name);}else{await addDoc(colPath("paymentMethods"),{...m,createdBy:currentUser.email,createdAt:serverTimestamp()});await audit("Create Payment Method",m.name);}resetPaymentMethodForm();alert("Payment method saved.");}catch(e){alert("Payment method save failed: "+e.message);}}
+window.resetPaymentMethodForm=function(){const f=document.getElementById("paymentMethodForm");if(f)f.reset();const id=document.getElementById("paymentMethodId");if(id)id.value="";}
+window.editPaymentMethod=function(id){const m=data.paymentMethods.find(x=>x.id===id);if(!m)return;document.getElementById("paymentMethodId").value=m.id;document.getElementById("paymentMethodName").value=m.name||"";document.getElementById("paymentMethodStatus").value=m.status||"Active";}
+function renderPaymentMethods(){const el=document.getElementById("paymentMethodTable");if(!el)return;const source=data.paymentMethods.length?data.paymentMethods:DEFAULT_PAYMENT_METHODS.map((name,i)=>({id:"default"+i,name,status:"Active"}));let html='<table><thead><tr><th>Method</th><th>Status</th><th>Action</th></tr></thead><tbody>';source.forEach(m=>{const action=String(m.id).startsWith("default")?'<span class="muted">Default</span>':`<button class="secondary" onclick="editPaymentMethod('${m.id}')">Edit</button>`;html+=`<tr><td>${m.name}</td><td>${m.status||"Active"}</td><td>${action}</td></tr>`});html+='</tbody></table>';el.innerHTML=html;}
+
+window.saveCategory=async function(){const id=document.getElementById("categoryId").value;const c={name:document.getElementById("categoryName").value.trim(),status:document.getElementById("categoryStatus").value,updatedBy:currentUser.email,updatedAt:serverTimestamp()};if(!c.name){alert("Please enter category.");return;}try{if(id){await setDoc(docPath("categories",id),c,{merge:true});await audit("Edit Supplier Category",c.name);}else{await addDoc(colPath("categories"),{...c,createdBy:currentUser.email,createdAt:serverTimestamp()});await audit("Create Supplier Category",c.name);}resetCategoryForm();alert("Category saved.");}catch(e){alert("Category save failed: "+e.message);}}
+window.resetCategoryForm=function(){const f=document.getElementById("categoryForm");if(f)f.reset();const id=document.getElementById("categoryId");if(id)id.value="";}
+window.editCategory=function(id){const c=data.categories.find(x=>x.id===id);if(!c)return;document.getElementById("categoryId").value=c.id;document.getElementById("categoryName").value=c.name||"";document.getElementById("categoryStatus").value=c.status||"Active";}
+function renderCategories(){const el=document.getElementById("categoryTable");if(!el)return;const source=data.categories.length?data.categories:DEFAULT_CATEGORIES.map((name,i)=>({id:"default"+i,name,status:"Active"}));let html='<table><thead><tr><th>Category</th><th>Status</th><th>Action</th></tr></thead><tbody>';source.forEach(c=>{const action=String(c.id).startsWith("default")?'<span class="muted">Default</span>':`<button class="secondary" onclick="editCategory('${c.id}')">Edit</button>`;html+=`<tr><td>${c.name}</td><td>${c.status||"Active"}</td><td>${action}</td></tr>`});html+='</tbody></table>';el.innerHTML=html;}
+
+function renderAll(){if(document.getElementById("appScreen").classList.contains("hidden"))return;populateBranchControls();renderDashboard();renderInvoices();renderPayments();renderCalendar();renderSummary();renderMethodSummary();renderAudit();renderUsers();renderBranches();renderPaymentMethods();renderCategories();}
 if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(console.log));}

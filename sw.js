@@ -1,4 +1,4 @@
-const CACHE_NAME = "ggbs-v1-1-beta";
+const CACHE_NAME = "ggbs-v1-2-beta";
 const FILES_TO_CACHE = [
   "./",
   "./index.html",
