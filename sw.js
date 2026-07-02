@@ -1,4 +1,4 @@
-const CACHE_NAME = "ggbs-v1-0-beta";
+const CACHE_NAME = "ggbs-v1-1-beta";
 const FILES_TO_CACHE = [
   "./",
   "./index.html",
@@ -19,9 +19,7 @@ self.addEventListener("install", event => {
 });
 
 self.addEventListener("activate", event => {
-  event.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.map(key => key !== CACHE_NAME ? caches.delete(key) : null)))
-  );
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.map(key => key !== CACHE_NAME ? caches.delete(key) : null))));
   self.clients.claim();
 });
 

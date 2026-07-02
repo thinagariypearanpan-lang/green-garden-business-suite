@@ -1,7 +1,7 @@
 {
   "name": "Green Garden Business Suite",
   "short_name": "GGBS",
-  "description": "Green Garden Business Suite - Module 1 Supplier Payment Management",
+  "description": "Green Garden Business Suite - Multi-Branch Supplier Payment Management",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

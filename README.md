@@ -1,17 +1,23 @@
-# Green Garden Business Suite v1.0 Beta
+# Green Garden Business Suite v1.1 Beta
 
 ## Module 1: Supplier Payment Management
 
-This clean Beta package includes:
-- Correct folder structure
-- GGM logo in assets/images/ggm-logo.png
-- Firebase config in firebase/firebase-config.js
-- App logic in js/app.js
-- PWA icons
-- Future module placeholders
-- Supplier Payment module with dashboard, invoices, payment history, calendar, summaries, audit log and exports.
-
-Upload the contents of this extracted folder to the ROOT of your GitHub repository.
+New in v1.1 Beta:
+- Multi-branch support
+- Branch dropdown on invoice entry
+- Branch filter on dashboard and reports
+- User Management foundation
+- User profiles with name, email, role, branch access and status
+- Future module placeholders remain visible
 
 Important:
-Test with sample data first.
+Firebase Authentication login accounts must still be created in Firebase Console.
+The User Management page stores the user's profile and access details inside Firestore.
+
+Suggested roles:
+- Super Admin
+- Manager
+- Accounts/Admin
+- Viewer
+
+Test using sample data first.
