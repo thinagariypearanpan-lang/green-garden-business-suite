@@ -1,9 +1,23 @@
-# GGBS v1.2.2 Stable Login Fix
+# Green Garden Business Suite v1.1 Beta
 
-Fixed:
-- Syntax error in app.js
-- Remaining broken BRANCHES replacement
-- Login function loading issue
+## Module 1: Supplier Payment Management
 
-Deploy:
-Replace files, commit, push, wait for GitHub Pages success, then Ctrl + Shift + R.
+New in v1.1 Beta:
+- Multi-branch support
+- Branch dropdown on invoice entry
+- Branch filter on dashboard and reports
+- User Management foundation
+- User profiles with name, email, role, branch access and status
+- Future module placeholders remain visible
+
+Important:
+Firebase Authentication login accounts must still be created in Firebase Console.
+The User Management page stores the user's profile and access details inside Firestore.
+
+Suggested roles:
+- Super Admin
+- Manager
+- Accounts/Admin
+- Viewer
+
+Test using sample data first.

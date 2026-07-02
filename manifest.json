@@ -1,12 +1,13 @@
 {
   "name": "Green Garden Business Suite",
   "short_name": "GGBS",
-  "description": "GGBS v1.2 Beta - Supplier Payment + System Administration",
+  "description": "Green Garden Business Suite - Multi-Branch Supplier Payment Management",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f6f7f9",
   "theme_color": "#166534",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "icon-192.png",
