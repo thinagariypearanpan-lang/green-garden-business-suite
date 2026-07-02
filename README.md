@@ -1,23 +1,18 @@
-# Green Garden Business Suite v1.1 Beta
+# Green Garden Business Suite v1.2 Beta - Branch Management Stable
 
-## Module 1: Supplier Payment Management
+Built from stable v1.1.
 
-New in v1.1 Beta:
-- Multi-branch support
-- Branch dropdown on invoice entry
-- Branch filter on dashboard and reports
-- User Management foundation
-- User profiles with name, email, role, branch access and status
-- Future module placeholders remain visible
+New:
+- Branch Management page
+- Add branch
+- Edit branch
+- Active / inactive branch status
+- Branch dropdowns pull active branches from Firestore
 
-Important:
-Firebase Authentication login accounts must still be created in Firebase Console.
-The User Management page stores the user's profile and access details inside Firestore.
+Not included:
+- Payment method management
+- Category management
+- Operating expenses
+- Other modules
 
-Suggested roles:
-- Super Admin
-- Manager
-- Accounts/Admin
-- Viewer
-
-Test using sample data first.
+Supplier Payment and login are preserved from stable v1.1.

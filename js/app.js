@@ -7,9 +7,13 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const COMPANY_ID = "green_garden_market";
 const BRANCHES = ["Green Garden Market","Cahaya Maju","Nibong Tebal","Simpang Ampat","Alma","Sungai Bakap"];
+function activeBranches(){
+  const saved = data.branches.filter(b => b.status !== "Inactive").map(b => b.name).filter(Boolean);
+  return saved.length ? saved : BRANCHES;
+}
 
 let currentUser = null;
-let data = { invoices: [], payments: [], auditLogs: [], userProfiles: [] };
+let data = { invoices: [], payments: [], auditLogs: [], userProfiles: [], branches: [] };
 let viewMonth = new Date().getMonth();
 let viewYear = new Date().getFullYear();
 let unsub = [];
@@ -22,18 +26,24 @@ function setToday(){
   document.getElementById("todayDate").textContent = today.toLocaleDateString("en-MY",{weekday:"short",year:"numeric",month:"short",day:"numeric"});
 }
 function populateBranchControls(){
-  const selects = ["branch","globalBranchFilter","invoiceBranchFilter"];
-  selects.forEach(id => {
+  const branchList = activeBranches();
+  ["branch","globalBranchFilter","invoiceBranchFilter"].forEach(id => {
     const el = document.getElementById(id);
     if(!el) return;
-    const current = el.value || (id === "branch" ? BRANCHES[0] : "All");
+    const current = el.value || (id === "branch" ? branchList[0] : "All");
     if(id === "branch"){
-      el.innerHTML = BRANCHES.map(b => `<option value="${b}">${b}</option>`).join("");
+      el.innerHTML = branchList.map(b => `<option value="${b}">${b}</option>`).join("");
     } else {
-      el.innerHTML = '<option value="All">All Branches</option>' + BRANCHES.map(b => `<option value="${b}">${b}</option>`).join("");
+      el.innerHTML = '<option value="All">All Branches</option>' + branchList.map(b => `<option value="${b}">${b}</option>`).join("");
     }
-    el.value = [...el.options].some(o => o.value === current) ? current : (id === "branch" ? BRANCHES[0] : "All");
+    el.value = [...el.options].some(o => o.value === current) ? current : (id === "branch" ? branchList[0] : "All");
   });
+  const profileBranch = document.getElementById("profileBranch");
+  if(profileBranch){
+    const current = profileBranch.value || "All Branches";
+    profileBranch.innerHTML = '<option>All Branches</option>' + branchList.map(b => `<option>${b}</option>`).join("");
+    profileBranch.value = [...profileBranch.options].some(o => o.value === current) ? current : "All Branches";
+  }
 }
 setToday();
 populateBranchControls();
@@ -87,6 +97,10 @@ function listenData(){
     data.userProfiles = snap.docs.map(d => ({id:d.id, ...d.data()}));
     renderAll();
   }, err => console.log(err.message)));
+  unsub.push(onSnapshot(query(colPath("branches"), orderBy("name","asc")), snap => {
+    data.branches = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    renderAll();
+  }, err => console.log(err.message)));
 }
 
 async function audit(action, details){
@@ -124,7 +138,7 @@ window.showPage = function(id,btn){
  renderAll();
 }
 window.showPageById = function(id){
- const ids=["dashboard","invoiceEntry","invoices","paymentHistory","calendarTab","summary","methodSummary","audit","users"];
+ const ids=["dashboard","invoiceEntry","invoices","paymentHistory","calendarTab","summary","methodSummary","audit","users","branchAdmin"];
  const navButtons=document.querySelectorAll(".nav button");
  document.querySelectorAll(".page").forEach(t=>t.classList.remove("active"));
  navButtons.forEach(b=>b.classList.remove("active"));
@@ -293,5 +307,60 @@ window.exportCalendarCSV=function(){const month=`${viewYear}-${String(viewMonth+
 window.exportSupplierSummaryCSV=function(){const map={};filteredInvoicesByBranch().forEach(i=>{if(!map[i.supplier])map[i.supplier]={supplier:i.supplier,invoice:0,paid:0,out:0,overdue:0,count:0};map[i.supplier].invoice+=Number(i.amount||0);map[i.supplier].paid+=paidForInvoice(i.id);map[i.supplier].out+=outstanding(i);if(isOverdue(i))map[i.supplier].overdue+=outstanding(i);map[i.supplier].count++});downloadCSV("supplier_summary.csv",["Branch Filter","Supplier","No. of Invoices","Total Invoice","Total Paid","Total Outstanding","Overdue"],Object.values(map).map(r=>[selectedBranch(),r.supplier,r.count,r.invoice,r.paid,r.out,r.overdue]))}
 window.exportMethodSummaryCSV=function(){const monthMap={};filteredPaymentsByBranch().forEach(p=>{const m=monthKey(p.date);if(!m)return;const method=p.method||"Other";if(!monthMap[m])monthMap[m]={month:m,total:0,Cash:0,"Bank Transfer":0,Cheque:0,DuitNow:0,Other:0};const amt=Number(p.amount||0);monthMap[m].total+=amt;if(method==="Cash")monthMap[m].Cash+=amt;else if(method==="Bank Transfer")monthMap[m]["Bank Transfer"]+=amt;else if(method==="Cheque")monthMap[m].Cheque+=amt;else if(method==="DuitNow")monthMap[m].DuitNow+=amt;else monthMap[m].Other+=amt});downloadCSV("monthly_payment_method_summary.csv",["Branch Filter","Month","Cash","Bank Transfer / Online","Cheque","DuitNow","Other","Total Paid"],Object.values(monthMap).map(r=>[selectedBranch(),monthLabel(r.month),r.Cash,r["Bank Transfer"],r.Cheque,r.DuitNow,r.Other,r.total]))}
 
-function renderAll(){if(document.getElementById("appScreen").classList.contains("hidden"))return;populateBranchControls();renderDashboard();renderInvoices();renderPayments();renderCalendar();renderSummary();renderMethodSummary();renderAudit();renderUsers();}
+
+window.saveBranch = async function(){
+  const id = document.getElementById("branchId").value;
+  const branch = {
+    name: document.getElementById("branchName").value.trim(),
+    code: document.getElementById("branchCode").value.trim().toUpperCase(),
+    status: document.getElementById("branchStatus").value,
+    manager: document.getElementById("branchManager").value.trim(),
+    address: document.getElementById("branchAddress").value.trim(),
+    updatedBy: currentUser.email,
+    updatedAt: serverTimestamp()
+  };
+  if(!branch.name){ alert("Please enter branch name."); return; }
+  try{
+    if(id){
+      await setDoc(docPath("branches", id), branch, {merge:true});
+      await audit("Edit Branch", `${branch.name} / ${branch.code || "-"}`);
+    } else {
+      await addDoc(colPath("branches"), {...branch, createdBy: currentUser.email, createdAt: serverTimestamp()});
+      await audit("Create Branch", `${branch.name} / ${branch.code || "-"}`);
+    }
+    resetBranchForm();
+    alert("Branch saved.");
+  }catch(e){ alert("Branch save failed: " + e.message); }
+}
+window.resetBranchForm = function(){
+  const form = document.getElementById("branchForm");
+  if(form) form.reset();
+  const id = document.getElementById("branchId");
+  if(id) id.value = "";
+}
+window.editBranch = function(id){
+  const b = data.branches.find(x => x.id === id);
+  if(!b) return;
+  document.getElementById("branchId").value = b.id;
+  document.getElementById("branchName").value = b.name || "";
+  document.getElementById("branchCode").value = b.code || "";
+  document.getElementById("branchStatus").value = b.status || "Active";
+  document.getElementById("branchManager").value = b.manager || "";
+  document.getElementById("branchAddress").value = b.address || "";
+  showPageById("branchAdmin");
+}
+function renderBranches(){
+  const el = document.getElementById("branchTable");
+  if(!el) return;
+  const source = data.branches.length ? data.branches : BRANCHES.map((name, i) => ({id:"default_"+i,name,code:"",status:"Active",manager:"",address:""}));
+  let html = '<table><thead><tr><th>Branch Name</th><th>Code</th><th>Status</th><th>Manager</th><th>Address / Notes</th><th>Action</th></tr></thead><tbody>';
+  source.forEach(b => {
+    const action = String(b.id).startsWith("default_") ? '<span class="muted">Default branch</span>' : `<button class="secondary" onclick="editBranch('${b.id}')">Edit</button>`;
+    html += `<tr><td>${b.name || "-"}</td><td>${b.code || "-"}</td><td>${b.status || "Active"}</td><td>${b.manager || "-"}</td><td>${b.address || "-"}</td><td>${action}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function renderAll(){if(document.getElementById("appScreen").classList.contains("hidden"))return;populateBranchControls();renderDashboard();renderInvoices();renderPayments();renderCalendar();renderSummary();renderMethodSummary();renderAudit();renderUsers();renderBranches();}
 if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(console.log));}
