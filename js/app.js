@@ -25,7 +25,7 @@ function userRole(){ return currentProfile().role || "Viewer"; }
 function userBranchAccess(){ return currentProfile().branchAccess || "__NO_ACCESS__"; }
 function hasAllBranchAccess(){
   const role = userRole();
-  return ["Super Admin","Director","Manager","Finance"].includes(role) || userBranchAccess() === "All Branches";
+  return ["Super Admin","Director","Finance"].includes(role) || userBranchAccess() === "All Branches";
 }
 function allowedBranches(){
   if(hasAllBranchAccess()) return activeBranches();
@@ -33,8 +33,8 @@ function allowedBranches(){
   return activeBranches().includes(branch) ? [branch] : [];
 }
 function canManageSystem(){ return ["Super Admin","Director"].includes(userRole()); }
-function canEditRecords(){ return ["Super Admin","Director","Finance","Branch Admin","Accounts/Admin","Manager"].includes(userRole()); }
-function canViewAudit(){ return ["Super Admin","Director","Finance","Manager"].includes(userRole()); }
+function canEditRecords(){ return ["Super Admin","Director","Finance","Branch Admin"].includes(userRole()); }
+function canViewAudit(){ return ["Super Admin","Director","Finance"].includes(userRole()); }
 function enforceMenuPermissions(){
   const buttons = Array.from(document.querySelectorAll(".nav button"));
   buttons.forEach(btn => {

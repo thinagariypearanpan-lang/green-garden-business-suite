@@ -1,4 +1,4 @@
-const CACHE_NAME = "ggbs-v1-3-lts-roles-permissions";
+const CACHE_NAME = "ggbs-v1-3-lts-stable";
 const FILES_TO_CACHE = [
   "./",
   "./index.html",
